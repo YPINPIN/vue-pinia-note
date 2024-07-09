@@ -1,4 +1,6 @@
 import { createRouter, createWebHistory } from 'vue-router';
+// 全局控制 tab
+import { currentTab } from '@/utility/tabData.js';
 
 // 配置路由規則
 const routes = [
@@ -27,6 +29,19 @@ const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
   // 設定前面配置的路由
   routes,
+});
+
+// 全局前置守衛
+router.beforeEach((to, from) => {
+  // 設定 tab
+  if (to.name === 'Home' && to.query.tab) {
+    currentTab.set(to.query.tab);
+  } else if (
+    sessionStorage.getItem('currentTab') &&
+    currentTab.value !== sessionStorage.getItem('currentTab')
+  ) {
+    currentTab.set(sessionStorage.getItem('currentTab'));
+  }
 });
 
 // 共享路由實例
