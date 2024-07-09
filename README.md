@@ -179,7 +179,7 @@ app.mount('#app');
 
 在要使用 Store 的組件的 `<script setup>` 中引入並調用 `defineStore()` 返回的函數之後會創建 Store 實例，接著可以在組件中的任意位置訪問 Store 中的 `state`、`getters`、`actions` 中定義的任何屬性。
 
-> 需要注意： Store 是一個用 `reactive` 包裝的物件，因此不需要使用 `.value`，並且不能對它進行解構 (會破壞響應性)。
+> 需要注意： Store 是一個用 `reactive` 包裝的物件，因此不需要使用 `.value`，**並且不能直接對它進行解構 (會破壞響應性)**，需要解構請參考以下的[從 Store 解構](#從-store-解構)。
 
 Home.vue：
 
