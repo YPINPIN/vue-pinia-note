@@ -10,7 +10,7 @@ export const useCounter2Store = defineStore('counter2', () => {
     count.value++;
   }
 
-  // 返回想暴露的屬性及方法的物件
+  // 返回要使用的屬性及方法的物件
   return {
     count,
     doubleCount,
