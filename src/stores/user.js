@@ -13,15 +13,3 @@ export const useUserStore = defineStore('user', {
     };
   },
 });
-
-// Setup Store
-// import { ref } from 'vue';
-// export const useUserStore = defineStore('user', () => {
-//   const count = ref(0);
-//   const name = ref('Eduardo');
-//   const age = ref(30);
-//   const items = ref([]);
-//   const isAdmin = ref(true);
-
-//   return { count, name, age, items, isAdmin };
-// });
