@@ -36,6 +36,18 @@
 
   - [訂閱 State 變化](#訂閱-state-變化)
 
+- [Getter 介紹](#getter-介紹)
+
+  - [定義 Getter](#定義-getter)
+
+  - [使用 Getter](#使用-getter)
+
+  - [訪問其他 Getter](#訪問其他-getter)
+
+  - [向 Getter 傳遞參數](#向-getter-傳遞參數)
+
+  - [訪問其他 Store 的 Getter](#訪問其他-store-的-getter)
+
 ## 簡介
 
 Pinia 為 Vue 的專屬狀態管理庫，**允許跨組件或頁面共享狀態**，並且支持 Vue 2 和 Vue 3。
@@ -570,3 +582,278 @@ const unsubscribe = someStore.$subscribe(callback, { detached: true });
 unsubscribe();
 </script>
 ```
+
+## Getter 介紹
+
+Getter 完全等同於 `state` 的計算值 (`computed`)，**可以通過 `getters` 屬性來定義，推薦使用箭頭函數，並且將接收 `state` 作為第一個參數**。
+
+### 定義 Getter
+
+- Option Store
+
+  ```javascript
+  // scoreA.js
+  import { defineStore } from 'pinia';
+
+  export const useScoreAStore = defineStore('scoreA', {
+    state: () => {
+      return {
+        score: 0,
+      };
+    },
+    getters: {
+      doubleScore: (state) => state.score * 2,
+    },
+  });
+  ```
+
+- Setup Store
+
+  ```javascript
+  // scoreB.js
+  import { defineStore } from 'pinia';
+  import { computed, ref } from 'vue';
+
+  export const useScoreBStore = defineStore('scoreB', () => {
+    const score = ref(0);
+    const doubleScore = computed(() => score.value * 2);
+
+    return { score, doubleScore };
+  });
+  ```
+
+### 使用 Getter
+
+Score.vue：
+
+```vue
+<script setup>
+import { useScoreAStore } from '@/stores/scoreA';
+import { useScoreBStore } from '@/stores/scoreB';
+
+const scoreA = useScoreAStore();
+const scoreB = useScoreBStore();
+
+// 跟 state 屬性一樣可以直接訪問
+scoreA.score = 10;
+scoreB.score = 15;
+</script>
+
+<template>
+  <h2>Score page</h2>
+  <p>
+    scoreA - score: {{ scoreA.score }} | doubleScore: {{ scoreA.doubleScore }}
+  </p>
+  <p>
+    scoreB - score: {{ scoreB.score }} | doubleScore: {{ scoreB.doubleScore }}
+  </p>
+</template>
+```
+
+![圖片05](./images/05.PNG)
+
+### 訪問其他 Getter
+
+與計算屬性 (`computed`) 一樣，可以組合多個 Getter。
+
+通過 `this` 可以訪問到其他任何 Getter，在這種情況下如果使用的是 TypeScript 則需要明確的定義其返回值的型別。
+
+- Option Store
+
+  ```javascript
+  // scoreA.js
+  import { defineStore } from 'pinia';
+
+  export const useScoreAStore = defineStore('scoreA', {
+    state: () => {
+      return {
+        score: 0,
+      };
+    },
+    getters: {
+      doubleScore: (state) => state.score * 2,
+      // 使用 JSDoc 標注類型
+      /**
+       * @returns {number}
+       */
+      doubleScorePlusOne() {
+        return this.doubleScore + 1;
+      },
+    },
+  });
+  ```
+
+- Setup Store
+
+  ```javascript
+  // scoreB.js
+  import { defineStore } from 'pinia';
+  import { computed, ref } from 'vue';
+
+  export const useScoreBStore = defineStore('scoreB', () => {
+    const score = ref(0);
+    const doubleScore = computed(() => score.value * 2);
+    const doubleScorePlusOne = computed(() => doubleScore.value + 1);
+
+    return { score, doubleScore, doubleScorePlusOne };
+  });
+  ```
+
+![pinia-9.gif](./images/gif/pinia-9.gif)
+
+### 向 Getter 傳遞參數
+
+Getter 原則上只是單純的計算屬性，因此不可以傳遞任何參數，但是可以透過定義 Getter 來**返回一個函數，該函數則可以接受任意參數**。
+
+```javascript
+// userList.js
+import { defineStore } from 'pinia';
+
+export const useUserListStore = defineStore('userList', {
+  state: () => {
+    return {
+      users: [
+        {
+          id: 1,
+          name: 'Joy',
+          age: '20',
+        },
+        {
+          id: 2,
+          name: 'Tony',
+          age: '35',
+        },
+        {
+          id: 3,
+          name: 'Peter',
+          age: '16',
+        },
+      ],
+    };
+  },
+  getters: {
+    getUserById: (state) => {
+      return (userId) => {
+        console.log('getUserById--- userId: ', userId);
+        return state.users.find((user) => user.id === userId);
+      };
+    },
+  },
+});
+```
+
+但需要注意這樣做時，**由於 Getter 只是一個被你調用的函數，因此會每次都去進行調用**，而不會緩存結果。
+
+UserList.vue：
+
+```vue
+<script setup>
+import { useUserListStore } from '@/stores/userList';
+import { storeToRefs } from 'pinia';
+import { ref } from 'vue';
+
+const userList = useUserListStore();
+const { users, getUserById } = storeToRefs(userList);
+
+const curUser = ref(null);
+function onBtnIdClick(userId) {
+  console.log('onBtnIdClick: ', userId);
+  // 請注意解構後 <script setup> 中需要使用 `getUserById.value` 來調用
+  curUser.value = getUserById.value(userId);
+}
+</script>
+
+<template>
+  <h2>UserList page</h2>
+  <div>
+    <span>getUserById： </span>
+    <button @click="onBtnIdClick(user.id)" v-for="user in users" :key="user.id">
+      {{ user.id }}
+    </button>
+  </div>
+  <p v-if="curUser">curUser: {{ curUser }}</p>
+</template>
+```
+
+![pinia-10.gif](./images/gif/pinia-10.gif)
+
+### 訪問其他 Store 的 Getter
+
+若需要使用另一個 Store 的 Getter 的話，**可以直接在 Getter 內部使用就好**。
+
+setting.js：
+
+```javascript
+// setting.js
+import { defineStore } from 'pinia';
+
+export const useSettingStore = defineStore('setting', {
+  state: () => {
+    return {
+      prefix: '@',
+    };
+  },
+  getters: {
+    userPrefix: (state) => state.prefix + 'user-',
+  },
+});
+```
+
+userList.js：
+
+```javascript
+// userList.js
+import { defineStore } from 'pinia';
+// import SettingStore
+import { useSettingStore } from './setting';
+
+export const useUserListStore = defineStore('userList', {
+  state: () => {
+    return {
+      users: [
+        // 省略...
+      ],
+    };
+  },
+  getters: {
+    // 省略...
+    userListWithPrefix: (state) => {
+      // 使用其他的 Store Getter
+      const setting = useSettingStore();
+      let newList = [];
+      state.users.forEach((user) => {
+        newList.push({
+          ...user,
+          name: setting.userPrefix + user.name.toLowerCase(),
+        });
+      });
+      return newList;
+    },
+  },
+});
+```
+
+UserList.vue：
+
+```vue
+<script setup>
+import { useUserListStore } from '@/stores/userList';
+import { storeToRefs } from 'pinia';
+import { ref } from 'vue';
+
+const userList = useUserListStore();
+const { users, getUserById, userListWithPrefix } = storeToRefs(userList);
+
+// 省略...
+</script>
+
+<template>
+  <h2>UserList page</h2>
+  <!-- 省略 -->
+  <hr />
+  <p>userListWithPrefix:</p>
+  <p>{{ userListWithPrefix }}</p>
+</template>
+```
+
+![pinia-11.gif](./images/gif/pinia-11.gif)

@@ -25,6 +25,16 @@ const routes = [
     name: 'User2',
     component: () => import('@/views/User2.vue'),
   },
+  {
+    path: '/score',
+    name: 'Score',
+    component: () => import('@/views/Score.vue'),
+  },
+  {
+    path: '/userlist',
+    name: 'UserList',
+    component: () => import('@/views/UserList.vue'),
+  },
   // 設置 404 NotFound 頁面
   {
     path: '/:pathMatch(.*)',
