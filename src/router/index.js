@@ -1,6 +1,6 @@
 import { createRouter, createWebHistory } from 'vue-router';
 // 全局控制 tab
-import { currentTab } from '@/utility/tabData.js';
+import { tabs, currentTab } from '@/utility/tabData.js';
 
 // 配置路由規則
 const routes = [
@@ -14,6 +14,16 @@ const routes = [
     name: 'About',
     // 動態導入(懶加載)
     component: () => import('@/views/About.vue'),
+  },
+  {
+    path: '/user',
+    name: 'User',
+    component: () => import('@/views/User.vue'),
+  },
+  {
+    path: '/user2',
+    name: 'User2',
+    component: () => import('@/views/User2.vue'),
   },
   // 設置 404 NotFound 頁面
   {
@@ -36,6 +46,7 @@ router.beforeEach((to, from) => {
   // 設定 tab
   if (to.name === 'Home' && to.query.tab) {
     currentTab.set(to.query.tab);
+    return { path: tabs[currentTab.value].path };
   } else if (
     sessionStorage.getItem('currentTab') &&
     currentTab.value !== sessionStorage.getItem('currentTab')
