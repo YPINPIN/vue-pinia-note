@@ -1,6 +1,5 @@
 <script setup>
 import { useUserStore } from '@/stores/user';
-import { onUnmounted } from 'vue';
 
 const user = useUserStore();
 
