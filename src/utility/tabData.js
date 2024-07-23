@@ -8,7 +8,11 @@ export const tabs = {
   Demo1: { name: 'Store 介紹', comp: NavLink_1, path: '/' },
   Demo2: { name: 'State 介紹', comp: NavLink_2, path: '/user' },
   Demo3: { name: 'Getter 介紹', comp: NavLink_3, path: '/score' },
-  Demo4: { name: '向 Getter 傳遞參數', comp: NavLink_4, path: '/userlist' },
+  Demo4: {
+    name: '向 Getter 傳遞參數 & 訪問其他 Store 的 Getter',
+    comp: NavLink_4,
+    path: '/userlist',
+  },
 };
 
 export const currentTab = reactive({
