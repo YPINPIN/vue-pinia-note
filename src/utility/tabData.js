@@ -3,6 +3,7 @@ import NavLink_1 from '@/components/NavLink_1.vue';
 import NavLink_2 from '@/components/NavLink_2.vue';
 import NavLink_3 from '@/components/NavLink_3.vue';
 import NavLink_4 from '@/components/NavLink_4.vue';
+import NavLink_5 from '@/components/NavLink_5.vue';
 
 export const tabs = {
   Demo1: { name: 'Store 介紹', comp: NavLink_1, path: '/' },
@@ -12,6 +13,11 @@ export const tabs = {
     name: '向 Getter 傳遞參數 & 訪問其他 Store 的 Getter',
     comp: NavLink_4,
     path: '/userlist',
+  },
+  Demo5: {
+    name: 'Action 介紹',
+    comp: NavLink_5,
+    path: '/colorbg',
   },
 };
 

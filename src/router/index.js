@@ -35,6 +35,16 @@ const routes = [
     name: 'UserList',
     component: () => import('@/views/UserList.vue'),
   },
+  {
+    path: '/colorbg',
+    name: 'ColorBg',
+    component: () => import('@/views/ColorBg.vue'),
+  },
+  {
+    path: '/colorbg2',
+    name: 'ColorBg2',
+    component: () => import('@/views/ColorBg2.vue'),
+  },
   // 設置 404 NotFound 頁面
   {
     path: '/:pathMatch(.*)',

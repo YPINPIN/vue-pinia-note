@@ -48,6 +48,12 @@
 
   - [訪問其他 Store 的 Getter](#訪問其他-store-的-getter)
 
+- [Action 介紹](#action-介紹)
+
+  - [定義 Action](#定義-action)
+
+  - [調用 Action](#調用-action)
+
 ## 簡介
 
 Pinia 為 Vue 的專屬狀態管理庫，**允許跨組件或頁面共享狀態**，並且支持 Vue 2 和 Vue 3。
@@ -857,3 +863,284 @@ const { users, getUserById, userListWithPrefix } = storeToRefs(userList);
 ```
 
 ![pinia-11.gif](./images/gif/pinia-11.gif)
+
+## Action 介紹
+
+相當於組件中的 `method`，可以通過 `actions` 屬性來定義，**通常是用來定義業務邏輯的區塊**。
+
+### 定義 Action
+
+與 Getter 類似，Action 可以通過 `this` 訪問到整個 Store 實例。**另外 Action 也可以是異步的**。
+
+- Option Store
+
+  ```javascript
+  // colorBg.js
+  import { defineStore } from 'pinia';
+  import { rgbToHex, rgbToHsl } from '@/utility/colorTools';
+
+  export const useColorBgStore = defineStore('colorBg', {
+    state: () => {
+      return {
+        r: 222,
+        g: 184,
+        b: 135,
+        data: null,
+      };
+    },
+    getters: {
+      hex: (state) => {
+        return rgbToHex(state.r, state.g, state.b);
+      },
+      hsl: (state) => {
+        return rgbToHsl(state.r, state.g, state.b);
+      },
+      apiColorImg: (state) => state.data?.image.bare,
+      apiColorHsl: (state) => state.data?.hsl.value,
+      apiColorLightness: (state) => state.data?.hsl.l,
+    },
+    actions: {
+      getRandomNum(minNum, maxNum) {
+        return Math.round(Math.random() * (maxNum - minNum) + minNum);
+      },
+      randomColor() {
+        this.r = this.getRandomNum(0, 255);
+        this.g = this.getRandomNum(0, 255);
+        this.b = this.getRandomNum(0, 255);
+        this.getColorData();
+      },
+      // 異步 Action
+      async getColorData() {
+        try {
+          const res = await fetch(
+            `https://www.thecolorapi.com/id?hex=${this.hex.slice(1)}`
+          );
+          this.data = await res.json();
+        } catch (err) {
+          alert('get color api error:', err);
+        }
+      },
+    },
+  });
+  ```
+
+- Setup Store
+
+  ```javascript
+  // colorBg2.js
+  import { defineStore } from 'pinia';
+  import { computed, ref } from 'vue';
+  import { rgbToHex, rgbToHsl } from '@/utility/colorTools';
+
+  export const useColorBg2Store = defineStore('colorBg2', () => {
+    const r = ref(222);
+    const g = ref(184);
+    const b = ref(135);
+    const data = ref(null);
+
+    const hex = computed(() => rgbToHex(r.value, g.value, b.value));
+    const hsl = computed(() => rgbToHsl(r.value, g.value, b.value));
+    const apiColorImg = computed(() => data.value?.image.bare);
+    const apiColorHsl = computed(() => data.value?.hsl.value);
+    const apiColorLightness = computed(() => data.value?.hsl.l);
+
+    function getRandomNum(minNum, maxNum) {
+      return Math.round(Math.random() * (maxNum - minNum) + minNum);
+    }
+    function randomColor() {
+      r.value = getRandomNum(0, 255);
+      g.value = getRandomNum(0, 255);
+      b.value = getRandomNum(0, 255);
+      getColorData();
+    }
+    // 異步 Action
+    async function getColorData() {
+      try {
+        const res = await fetch(
+          `https://www.thecolorapi.com/id?hex=${hex.value.slice(1)}`
+        );
+        data.value = await res.json();
+      } catch (err) {
+        alert('get color api error:', err);
+      }
+    }
+
+    return {
+      r,
+      g,
+      b,
+      data,
+      hex,
+      hsl,
+      apiColorImg,
+      apiColorHsl,
+      apiColorLightness,
+      randomColor,
+      getColorData,
+    };
+  });
+  ```
+
+### 調用 Action
+
+Action 可以像方法一樣被調用。
+
+- ColorBg.vue (Option Store)：
+
+  ```vue
+  <script setup>
+  import { useColorBgStore } from '@/stores/colorBg';
+
+  const colorBg = useColorBgStore();
+  // 可以像方法一樣調用 Action
+  colorBg.getColorData();
+  </script>
+
+  <template>
+    <h2>ColorBg page (Option)</h2>
+    <div
+      class="bg"
+      :style="{
+        backgroundColor: colorBg.hex,
+        color: colorBg.hsl.l > 50 ? 'black' : 'white',
+      }"
+    >
+      {{ colorBg.hex }}
+    </div>
+    <div>
+      <!-- 模板中也可以直接調用 Action -->
+      <button @click="colorBg.randomColor()">random color</button>
+    </div>
+    <div v-if="colorBg.data">
+      <p>
+        use
+        <a href="https://www.thecolorapi.com/" target="_blank">The Color Api</a>
+        get color img：
+      </p>
+      <div class="api_color_wrapper">
+        <img :src="colorBg.apiColorImg" class="api_color_img" alt="color-img" />
+        <span
+          class="api_color_hsl"
+          :style="{
+            color: colorBg.apiColorLightness > 50 ? 'black' : 'white',
+          }"
+          >{{ colorBg.apiColorHsl }}</span
+        >
+      </div>
+    </div>
+  </template>
+
+  <style scoped>
+  .bg {
+    width: 150px;
+    height: 150px;
+    border: 1px solid black;
+    margin-bottom: 10px;
+    text-align: center;
+    font-size: 20px;
+    line-height: 150px;
+  }
+  .api_color_wrapper {
+    position: relative;
+    width: 150px;
+    height: 150px;
+  }
+  .api_color_img {
+    border-radius: 10px;
+    width: 150px;
+    height: 150px;
+  }
+  .api_color_hsl {
+    position: absolute;
+    width: 150px;
+    text-align: center;
+    left: 0;
+    top: 50%;
+    transform: translateY(-50%);
+  }
+  </style>
+  ```
+
+  ![pinia-11.gif](./images/gif/pinia-12.gif)
+
+- ColorBg2.vue (Setup Store)：
+
+  ```vue
+  <script setup>
+  import { useColorBg2Store } from '@/stores/colorBg2';
+
+  const colorBg2 = useColorBg2Store();
+  // 可以像方法一樣調用 Action
+  colorBg2.getColorData();
+  </script>
+
+  <template>
+    <h2>ColorBg2 page (Setup)</h2>
+    <div
+      class="bg"
+      :style="{
+        backgroundColor: colorBg2.hex,
+        color: colorBg2.hsl.l > 50 ? 'black' : 'white',
+      }"
+    >
+      {{ colorBg2.hex }}
+    </div>
+    <div>
+      <!-- 模板中也可以直接調用 Action -->
+      <button @click="colorBg2.randomColor()">random color</button>
+    </div>
+    <div v-if="colorBg2.data">
+      <p>
+        use
+        <a href="https://www.thecolorapi.com/" target="_blank">The Color Api</a>
+        get color img：
+      </p>
+      <div class="api_color_wrapper">
+        <img
+          :src="colorBg2.apiColorImg"
+          class="api_color_img"
+          alt="color-img"
+        />
+        <span
+          class="api_color_hsl"
+          :style="{
+            color: colorBg2.apiColorLightness > 50 ? 'black' : 'white',
+          }"
+          >{{ colorBg2.apiColorHsl }}</span
+        >
+      </div>
+    </div>
+  </template>
+
+  <style scoped>
+  .bg {
+    width: 150px;
+    height: 150px;
+    border: 1px solid black;
+    margin-bottom: 10px;
+    text-align: center;
+    font-size: 20px;
+    line-height: 150px;
+  }
+  .api_color_wrapper {
+    position: relative;
+    width: 150px;
+    height: 150px;
+  }
+  .api_color_img {
+    border-radius: 10px;
+    width: 150px;
+    height: 150px;
+  }
+  .api_color_hsl {
+    position: absolute;
+    width: 150px;
+    text-align: center;
+    left: 0;
+    top: 50%;
+    transform: translateY(-50%);
+  }
+  </style>
+  ```
+
+  ![pinia-11.gif](./images/gif/pinia-13.gif)
