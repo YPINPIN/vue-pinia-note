@@ -4,6 +4,8 @@ import NavLink_2 from '@/components/NavLink_2.vue';
 import NavLink_3 from '@/components/NavLink_3.vue';
 import NavLink_4 from '@/components/NavLink_4.vue';
 import NavLink_5 from '@/components/NavLink_5.vue';
+import NavLink_6 from '@/components/NavLink_6.vue';
+import NavLink_7 from '@/components/NavLink_7.vue';
 
 export const tabs = {
   Demo1: { name: 'Store 介紹', comp: NavLink_1, path: '/' },
@@ -18,6 +20,16 @@ export const tabs = {
     name: 'Action 介紹',
     comp: NavLink_5,
     path: '/colorbg',
+  },
+  Demo6: {
+    name: 'Action 訪問其他的 Store',
+    comp: NavLink_6,
+    path: '/preferences',
+  },
+  Demo7: {
+    name: '訂閱 Action',
+    comp: NavLink_7,
+    path: '/themecolor',
   },
 };
 

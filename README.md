@@ -54,6 +54,10 @@
 
   - [調用 Action](#調用-action)
 
+  - [Action 訪問其他的 Store](#action-訪問其他的-store)
+
+  - [訂閱 Action](#訂閱-action)
+
 ## 簡介
 
 Pinia 為 Vue 的專屬狀態管理庫，**允許跨組件或頁面共享狀態**，並且支持 Vue 2 和 Vue 3。
@@ -1061,7 +1065,7 @@ Action 可以像方法一樣被調用。
   </style>
   ```
 
-  ![pinia-11.gif](./images/gif/pinia-12.gif)
+  ![pinia-12.gif](./images/gif/pinia-12.gif)
 
 - ColorBg2.vue (Setup Store)：
 
@@ -1143,4 +1147,258 @@ Action 可以像方法一樣被調用。
   </style>
   ```
 
-  ![pinia-11.gif](./images/gif/pinia-13.gif)
+  ![pinia-13.gif](./images/gif/pinia-13.gif)
+
+### Action 訪問其他的 Store
+
+若需要使用另一個 Store 的的話，**可以直接在 Action 內部使用就好**。
+
+auth.js：
+
+```javascript
+// auth.js
+import { defineStore } from 'pinia';
+
+export const useAuthStore = defineStore('auth', {
+  state: () => {
+    return {
+      isAuthenticated: false,
+    };
+  },
+  actions: {
+    login() {
+      this.isAuthenticated = true;
+    },
+    logout() {
+      this.isAuthenticated = false;
+    },
+  },
+});
+```
+
+preferences.js：
+
+```javascript
+// preferences.js
+import { defineStore } from 'pinia';
+// import AuthStore
+import { useAuthStore } from './auth';
+
+export const usePreferencesStore = defineStore('preferences', {
+  state: () => {
+    return {
+      theme: 'light',
+    };
+  },
+  actions: {
+    changeTheme() {
+      // 使用其他的 Store
+      const auth = useAuthStore();
+      if (!auth.isAuthenticated) {
+        alert('User must be authenticated.');
+        return;
+      }
+      this.theme = this.theme === 'light' ? 'dark' : 'light';
+    },
+  },
+});
+```
+
+Preferences.vue：
+
+```vue
+<script setup>
+import { usePreferencesStore } from '@/stores/preferences';
+
+const preferences = usePreferencesStore();
+</script>
+
+<template>
+  <h2>Preferences page</h2>
+  <div
+    class="bg"
+    :style="{
+      backgroundColor: preferences.theme === 'light' ? 'lightgrey' : 'black',
+      color: preferences.theme === 'light' ? 'black' : 'white',
+    }"
+  >
+    {{ preferences.theme }}
+  </div>
+  <div>
+    <button @click="preferences.changeTheme()">change Theme</button>
+  </div>
+</template>
+
+<style scoped>
+.bg {
+  width: 250px;
+  height: 250px;
+  border: 1px solid black;
+  margin-bottom: 10px;
+  text-align: center;
+  font-size: 30px;
+  line-height: 250px;
+}
+</style>
+```
+
+Auth.vue：
+
+```vue
+<script setup>
+import { useAuthStore } from '@/stores/auth';
+
+const auth = useAuthStore();
+</script>
+
+<template>
+  <h2>Auth page</h2>
+  <div>
+    <button v-if="auth.isAuthenticated" @click="auth.logout()">Logout</button>
+    <button v-else @click="auth.login()">Login</button>
+  </div>
+</template>
+```
+
+![pinia-14.gif](./images/gif/pinia-14.gif)
+
+### 訂閱 Action
+
+可以通過 store 的 `$onAction()` 方法監聽 Action 及其結果。
+
+`$onAction()` 方法接收一個回調函數，此回調函數的內部程式碼會在 Action 本身之前執行。
+
+此回調函數主要包含以下參數：
+
+- name
+
+  調用的 `action` 名稱。
+
+- store
+
+  當前 Store 實例。
+
+- args
+
+  傳遞給 `action` 的參數陣列。
+
+- after
+
+  在 `action` 返回或 `resolve` 之後的鉤子，接收一個包含 `result` 參數的回調函數。
+
+- onError
+
+  在 `action` 拋出錯誤或 `reject` 後的鉤子，接收一個包含 `error` 參數的回調函數。
+
+以下例子為在運行 Action 之前以及 Action `resolve`/`reject` 之後打印 Log。
+
+themeColor.js：
+
+```javascript
+// themeColor.js
+import { defineStore } from 'pinia';
+
+const themeColor = {
+  light: {
+    background: 'lightgrey',
+    text: 'black',
+  },
+  dark: {
+    background: 'black',
+    text: 'white',
+  },
+};
+
+export const useThemeColorStore = defineStore('themeColor', {
+  state: () => {
+    return {
+      theme: themeColor['light'],
+    };
+  },
+  actions: {
+    changeThemeByName(name) {
+      if (themeColor.hasOwnProperty(name)) {
+        this.theme = themeColor[name];
+        return Promise.resolve('success');
+      } else {
+        return Promise.reject(`theme ${name} not found`);
+      }
+    },
+  },
+});
+```
+
+ThemeColor.vue：
+
+```vue
+<script setup>
+import { useThemeColorStore } from '@/stores/themeColor';
+
+const themeColor = useThemeColorStore();
+
+// 訂閱 Action
+themeColor.$onAction(({ name, store, args, after, onError }) => {
+  const startTime = Date.now();
+  // 將在執行的 action 之前觸發
+  console.log(`---Start "${name}" with params [${args.join(', ')}].`);
+  console.log(`store "${JSON.stringify(store)}"`);
+
+  //將在 action 成功並完全運行或 resolve 之後觸發
+  after((result) => {
+    let time = Date.now() - startTime;
+    console.log(`Finished "${name}" after ${time}ms.\nResult: ${result}.`);
+    console.log(`store "${JSON.stringify(store)}"`);
+  });
+
+  //如果 action 拋出錯誤或 reject 時觸發
+  onError((error) => {
+    let time = Date.now() - startTime;
+    console.warn(`Failed "${name}" after ${time}ms.\nError: ${error}.`);
+  });
+});
+</script>
+
+<template>
+  <h2>ThemeColor page</h2>
+  <div
+    class="bg"
+    :style="{
+      backgroundColor: themeColor.theme.background,
+      color: themeColor.theme.text,
+    }"
+  >
+    Text
+  </div>
+  <div>
+    <button @click="themeColor.changeThemeByName('light')">change light</button>
+    <button @click="themeColor.changeThemeByName('dark')">change dark</button>
+    <button @click="themeColor.changeThemeByName('blue')">change blue</button>
+  </div>
+</template>
+
+<style scoped>
+.bg {
+  width: 250px;
+  height: 250px;
+  border: 1px solid black;
+  margin-bottom: 10px;
+  text-align: center;
+  font-size: 30px;
+  line-height: 250px;
+}
+</style>
+```
+
+![pinia-15.gif](./images/gif/pinia-15.gif)
+
+默認情況下，`action` 訂閱器會被綁定到添加它們的組件上，因此當組件被卸載 (unmount) 時它會被自動刪除。若想在卸載後依舊保留，則需要傳遞第二個參數 `true`，`action` 訂閱器會從當前組件中分離。
+
+```vue
+<script setup>
+const someStore = useSomeStore();
+// 此訂閱器在組件卸載後依舊會被保留
+const unsubscribe = someStore.$onAction(callback, true);
+// 在合適的時候調用它，則可以取消這個訂閱
+unsubscribe();
+</script>
+```

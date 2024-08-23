@@ -45,6 +45,21 @@ const routes = [
     name: 'ColorBg2',
     component: () => import('@/views/ColorBg2.vue'),
   },
+  {
+    path: '/preferences',
+    name: 'Preferences',
+    component: () => import('@/views/Preferences.vue'),
+  },
+  {
+    path: '/auth',
+    name: 'Auth',
+    component: () => import('@/views/Auth.vue'),
+  },
+  {
+    path: '/themecolor',
+    name: 'ThemeColor',
+    component: () => import('@/views/ThemeColor.vue'),
+  },
   // 設置 404 NotFound 頁面
   {
     path: '/:pathMatch(.*)',
