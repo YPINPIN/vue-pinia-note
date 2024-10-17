@@ -2,6 +2,8 @@
 
 主要根據 Pinia 官方文檔整理的學習筆記，方便查閱。
 
+對應的 [💻Demo](https://vue-pinia-note.vercel.app/) 網站，標題旁的 📖 可以對應到相關筆記。
+
 ## 官方文檔
 
 > https://pinia.vuejs.org <br> https://pinia.vuejs.org/zh
@@ -141,6 +143,8 @@ app.mount('#app');
 ![圖片04](./images/04.PNG)
 
 ## Store 介紹
+
+[💻Demo](https://vue-pinia-note.vercel.app/?tab=Demo1)
 
 **Store 是一個保存狀態和邏輯的實體**，有點像一個永遠存在的組件，每個組件都可以讀取和寫入它，可以根據需求創建多個 Store 來儲存不同的數據狀態。
 
@@ -293,6 +297,8 @@ const { increment } = store;
 ![pinia-2.gif](./images/gif/pinia-2.gif)
 
 ## State 介紹
+
+[💻Demo](https://vue-pinia-note.vercel.app/?tab=Demo2)
 
 `state` 為 Store 的核心。在 Pinia 中，`state` 被定義為一個返回初始狀態 (object) 的函數，這使 Pinia 可以同時支援伺服器端和用戶端。
 
@@ -611,6 +617,8 @@ unsubscribe();
 
 ## Getter 介紹
 
+[💻Demo](https://vue-pinia-note.vercel.app/?tab=Demo3)
+
 Getter 完全等同於 `state` 的計算值 (`computed`)，**可以通過 `getters` 屬性來定義，推薦使用箭頭函數，並且將接收 `state` 作為第一個參數**。
 
 ### 定義 Getter
@@ -729,6 +737,8 @@ scoreB.score = 15;
 
 ### 向 Getter 傳遞參數
 
+[💻Demo](https://vue-pinia-note.vercel.app/?tab=Demo4)
+
 Getter 原則上只是單純的計算屬性，因此不可以傳遞任何參數，但是可以透過定義 Getter 來**返回一個函數，該函數則可以接受任意參數**。
 
 ```javascript
@@ -804,6 +814,8 @@ function onBtnIdClick(userId) {
 ![pinia-10.gif](./images/gif/pinia-10.gif)
 
 ### 訪問其他 Store 的 Getter
+
+[💻Demo](https://vue-pinia-note.vercel.app/?tab=Demo4)
 
 若需要使用另一個 Store 的 Getter 的話，**可以直接在 Getter 內部使用就好**。
 
@@ -885,6 +897,8 @@ const { users, getUserById, userListWithPrefix } = storeToRefs(userList);
 ![pinia-11.gif](./images/gif/pinia-11.gif)
 
 ## Action 介紹
+
+[💻Demo](https://vue-pinia-note.vercel.app/?tab=Demo5)
 
 相當於組件中的 `method`，可以通過 `actions` 屬性來定義，**通常是用來定義業務邏輯的區塊**。
 
@@ -1167,6 +1181,8 @@ Action 可以像方法一樣被調用。
 
 ### Action 訪問其他的 Store
 
+[💻Demo](https://vue-pinia-note.vercel.app/?tab=Demo6)
+
 若需要使用另一個 Store 的的話，**可以直接在 Action 內部使用就好**。
 
 auth.js：
@@ -1279,6 +1295,8 @@ const auth = useAuthStore();
 ![pinia-14.gif](./images/gif/pinia-14.gif)
 
 ### 訂閱 Action
+
+[💻Demo](https://vue-pinia-note.vercel.app/?tab=Demo7)
 
 可以通過 store 的 `$onAction()` 方法監聽 Action 及其結果。
 
@@ -1418,6 +1436,8 @@ unsubscribe();
 ```
 
 ## Plugin
+
+[💻Demo](https://vue-pinia-note.vercel.app/?tab=Demo8)
 
 Pinia 有了底層 API 的支持，可以支持擴展，以下是可擴展的功能：
 
