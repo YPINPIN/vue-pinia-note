@@ -60,6 +60,16 @@ const routes = [
     name: 'ThemeColor',
     component: () => import('@/views/ThemeColor.vue'),
   },
+  {
+    path: '/test',
+    name: 'Test',
+    component: () => import('@/views/Test.vue'),
+  },
+  {
+    path: '/photo',
+    name: 'Photo',
+    component: () => import('@/views/Photo.vue'),
+  },
   // 設置 404 NotFound 頁面
   {
     path: '/:pathMatch(.*)',

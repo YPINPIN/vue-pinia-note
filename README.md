@@ -58,6 +58,22 @@
 
   - [訂閱 Action](#訂閱-action)
 
+- [Plugin](#plugin)
+
+  - [Plugin 簡介](#plugin-簡介)
+
+  - [擴展 Store](#擴展-store)
+
+    - [添加新的 State](#添加新的-state)
+
+    - [重置 Plugin 新添加的 State](#重置-plugin-新添加的-state)
+
+  - [加新的外部屬性](#添加新的外部屬性)
+
+  - [在 Plugin 中調用 $subscribe](#在-plugin-中調用-subscribe)
+
+  - [添加新的選項 (options)](#添加新的選項-options)
+
 ## 簡介
 
 Pinia 為 Vue 的專屬狀態管理庫，**允許跨組件或頁面共享狀態**，並且支持 Vue 2 和 Vue 3。
@@ -1402,3 +1418,610 @@ const unsubscribe = someStore.$onAction(callback, true);
 unsubscribe();
 </script>
 ```
+
+## Plugin
+
+Pinia 有了底層 API 的支持，可以支持擴展，以下是可擴展的功能：
+
+- 為 Store 添加新的屬性
+
+- 定義 Store 時增加新的選項
+
+- 為 Store 增加新的方法
+
+- 包裝現有的方法
+
+- 改變甚至取消 Action
+
+- 實現副作用，例如本地儲存
+
+- 僅應用 Plugin 於特定 Store
+
+### Plugin 簡介
+
+Pinia Plugin 是**一個函數**，**接收一個可選參數 `context`**，並且可以選擇性的返回要添加到 Store 的屬性。然後可以使用 `pinia.use()` 將 Plugin 加入 pinia 實例。
+
+> 注意：Plugin 只會應用於在 pinia 傳遞給應用後創建的 Store，否則 Plugin 不會生效。
+
+最簡單的例子是，通過**返回一個物件**，**將一個靜態屬性添加到所有的 Store**。
+
+這種全域的定義方式，針對 `router`、`modal` 或 `toast`
+的管理非常有幫助。
+
+- main.js
+
+  ```javascript
+  import { createApp } from 'vue';
+  import App from './App.vue';
+  import router from './router';
+
+  // 創建 pinia 實例
+  import { createPinia } from 'pinia';
+  const pinia = createPinia();
+
+  // Plugin - 創建的每個 store 中都會添加一個名為 'secret' 的靜態屬性
+  function SecretPiniaPlugin(context) {
+    /**
+     * context.pinia -> 用 createPinia() 創建的 pinia 實例
+     * context.app -> 用 createApp() 創建的當前 Vue 應用(僅 Vue 3)
+     * context.store -> Plugin 想擴展的 Store
+     * context.options -> 定義傳給 defineStore() 的 store 的 options物件
+     */
+    return {
+      secret: 'the cake is a lie',
+    };
+  }
+  //使用 pinia.use() 將 Plugin 加入 pinia 實例
+  pinia.use(SecretPiniaPlugin);
+
+  const app = createApp(App);
+
+  app.use(router);
+  // 使用 pinia
+  app.use(pinia);
+
+  app.mount('#app');
+  ```
+
+![pinia-16.gif](./images/gif/pinia-16.gif)
+
+### 擴展 Store
+
+**為每個 Store 都添加上特定屬性**，有以下兩種方法，推薦使用第一種。
+
+- 1.直接在 Plugin 中**返回包含特定屬性的物件** (可以被 devtools 自動追蹤到)。
+
+  ```javascript
+  pinia.use(() => ({ hello: 'world' }));
+  ```
+
+- 2.直接在 `context` 中的 `store` 設置特殊屬性。
+
+  ```javascript
+  pinia.use(({ store }) => {
+    store.hello2 = 'world2';
+  });
+  ```
+
+  ![pinia-17.gif](./images/gif/pinia-17.gif)
+
+  若要使用此種方式，又想要**可以被 devtools 追蹤**，可以使用 `store._customProperties` 將要追踨的變數加入 (dev 模式下)。
+
+  ```javascript
+  pinia.use(({ store }) => {
+    store.hello2 = 'world2';
+    if (process.env.NODE_ENV == 'development') {
+      store._customProperties.add('hello2');
+    }
+  });
+  ```
+
+  ![pinia-18.gif](./images/gif/pinia-18.gif)
+
+值得注意的是，每個 Store 都是被 `reactive` 包裝起來的，所以會自動展開所有 Ref (`ref()`、`computed()` ...) 成員，這也是為什麼可以直接訪問所有的屬性且不需要 `.value`。
+
+以下範例分別設定了單獨的響應式屬性 `word` 以及共用的響應式屬性 `shared`：
+
+```javascript
+const sharedRef = ref('shared');
+
+pinia.use(({ store }) => {
+  // 每個 Store 都有單獨的 `word` 屬性
+  store.word = ref('secret');
+  // 它會被自動解包
+  console.log('store.word : ', store.word); // 'secret'
+
+  // 所有的 Store 都在共享 `shared` 屬性的值
+  store.shared = sharedRef;
+  // 它會被自動解包
+  console.log('store.shared : ', store.shared); // 'shared'
+
+  // 添加 devtools 追蹤
+  if (process.env.NODE_ENV == 'development') {
+    store._customProperties.add('word');
+    store._customProperties.add('shared');
+  }
+});
+```
+
+新建 Store (test1.js、test2.js)：
+
+```javascript
+// test1.js
+import { defineStore } from 'pinia';
+
+export const useTest1Store = defineStore('test1', {
+  state: () => {
+    return {
+      info: 'test1 word',
+    };
+  },
+  actions: {
+    changeWord() {
+      this.word += '?';
+    },
+    changeShared() {
+      this.shared += '!';
+    },
+  },
+});
+```
+
+```javascript
+// test2.js
+import { defineStore } from 'pinia';
+import { ref } from 'vue';
+
+export const useTest2Store = defineStore('test2', () => {
+  const info = ref('test2 word');
+
+  return { info };
+});
+```
+
+新建 Test Page (Test.vue)：
+
+```vue
+<script setup>
+import { useTest1Store } from '@/stores/test1';
+import { useTest2Store } from '@/stores/test2';
+
+const test1 = useTest1Store();
+const test2 = useTest2Store();
+</script>
+
+<template>
+  <h2>Test page</h2>
+  <table>
+    <thead>
+      <tr>
+        <th>Store</th>
+        <th>test1</th>
+        <th>test2</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <th>info</th>
+        <td>{{ test1.info }}</td>
+        <td>{{ test2.info }}</td>
+      </tr>
+      <tr>
+        <th>secret</th>
+        <td>{{ test1.secret }}</td>
+        <td>{{ test2.secret }}</td>
+      </tr>
+      <tr>
+        <th>hello</th>
+        <td>{{ test1.hello }}</td>
+        <td>{{ test2.hello }}</td>
+      </tr>
+      <tr>
+        <th>hello2</th>
+        <td>{{ test1.hello2 }}</td>
+        <td>{{ test2.hello2 }}</td>
+      </tr>
+      <tr>
+        <th>word</th>
+        <td>{{ test1.word }}</td>
+        <td>{{ test2.word }}</td>
+      </tr>
+      <tr>
+        <th>shared</th>
+        <td>{{ test1.shared }}</td>
+        <td>{{ test2.shared }}</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="action-wrapper">
+    <div class="action-div">
+      <button @click="test1.changeWord()">test1 change word</button>
+      <button @click="test1.changeShared()">test1 change shared</button>
+    </div>
+  </div>
+</template>
+
+<style scoped>
+table {
+  border-collapse: collapse;
+  border: 2px solid gray;
+  font-size: 20px;
+}
+th,
+td {
+  border: 1px solid gray;
+  padding: 8px 20px;
+}
+.action-div {
+  margin-top: 10px;
+}
+.action-div button {
+  margin-right: 10px;
+  padding: 8px 20px;
+}
+</style>
+```
+
+![pinia-19.gif](./images/gif/pinia-19.gif)
+
+#### 添加新的 State
+
+如果想給 Store 添加新的 State 屬性或是在 SSR 的激活過程中使用的屬性，**則必須同時在以下兩個地方添加它**。
+
+- 1.在 `store` 上，則可以使用 `store.myState` 訪問。
+
+- 2.在 `store.$state` 上，這樣才可以在 devtools 中使用它，並且在 SSR 時被正確序列化(serialized)。
+
+此外也必須使用 `ref()` 或是 `reactive()` 這類響應式 API 以便在不同的讀取中共享狀態。
+
+> 需要注意的是，在一個 Plugin 中，State 變更或添加都是發生在 Store 被激活之前，因此不會觸發任何訂閱函數。
+
+```javascript
+import { toRef, ref } from 'vue';
+
+// 添加新的 State
+pinia.use(({ store }) => {
+  // 為了正確處理 SSR，需要確保沒有重寫任何一個現有的值
+  if (!Object.prototype.hasOwnProperty(store.$state, 'hasError')) {
+    // 在 Plugin 中定義 hasError，因此每個 Store 都有各自的 hasError 狀態
+    const hasError = ref(false);
+    // 在 store.$state 上設置，允許它在 SSR 期間被序列化
+    store.$state.hasError = hasError;
+  }
+  /**
+   * 需要將 ref 從 state 轉移到 store 上
+   * 這樣兩種方式： store.hasError 和 store.$state.hasError 都可以訪問
+   * 並且共享的為同一個變量
+   */
+  store.hasError = toRef(store.$state, 'hasError');
+  /**
+   * 這種情況下建議不需要返回 hasError，因為它會被顯示在 devtools 的 state 部分
+   * 如果返回它，devtools 將顯示兩次
+   */
+});
+```
+
+修改 Store (test1.js、test2.js)：
+
+```javascript
+// test1.js
+import { defineStore } from 'pinia';
+
+export const useTest1Store = defineStore('test1', {
+  state: () => {
+    return {
+      info: 'test1 word',
+    };
+  },
+  actions: {
+    changeWord() {
+      this.word += '?';
+    },
+    changeShared() {
+      this.shared += '!';
+    },
+    changeError() {
+      this.hasError = !this.hasError;
+    },
+  },
+});
+```
+
+```javascript
+// test2.js
+import { defineStore } from 'pinia';
+import { ref } from 'vue';
+
+export const useTest2Store = defineStore('test2', () => {
+  const info = ref('test2 word');
+
+  function changeError() {
+    this.$state.hasError = !this.$state.hasError;
+  }
+
+  return { info, changeError };
+});
+```
+
+修改 Test Page (Test.vue)：
+
+```vue
+<script setup>
+// 省略...
+</script>
+
+<template>
+  <h2>Test page</h2>
+  <table>
+    <thead>
+      <tr>
+        <th>Store</th>
+        <th>test1</th>
+        <th>test2</th>
+      </tr>
+    </thead>
+    <tbody>
+      <!-- 省略... -->
+      <tr>
+        <th>hasError</th>
+        <td>{{ test1.hasError }}</td>
+        <td>{{ test2.hasError }}</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="action-wrapper">
+    <!-- 省略... -->
+    <div class="action-div">
+      <button @click="test1.changeError()">test1 change hasError</button>
+      <button @click="test2.changeError()">test2 change hasError</button>
+    </div>
+  </div>
+</template>
+
+<!-- 省略... -->
+```
+
+![pinia-20.gif](./images/gif/pinia-20.gif)
+
+#### 重置 Plugin 新添加的 State
+
+默認情況下，`$reset()` 並不會重置 Plugin 新添加的 State。
+
+修改 Store (test1.js、test2.js)：
+
+```javascript
+// test1.js
+import { defineStore } from 'pinia';
+
+export const useTest1Store = defineStore('test1', {
+  state: () => {
+    return {
+      info: 'test1 word',
+    };
+  },
+  actions: {
+    changeWord() {
+      this.word += '?';
+    },
+    changeShared() {
+      this.shared += '!';
+    },
+    changeError() {
+      this.hasError = !this.hasError;
+    },
+    changeInfo() {
+      this.info += '1';
+    },
+  },
+});
+```
+
+```javascript
+// test2.js
+import { defineStore } from 'pinia';
+import { ref } from 'vue';
+
+export const useTest2Store = defineStore('test2', () => {
+  const info = ref('test2 word');
+
+  function changeError() {
+    this.$state.hasError = !this.$state.hasError;
+  }
+
+  function changeInfo() {
+    info.value += '2';
+  }
+
+  // $reset()
+  function $reset() {
+    info.value = 'test2 word';
+  }
+
+  return { info, changeError, changeInfo, $reset };
+});
+```
+
+修改 Test Page (Test.vue)：
+
+```vue
+<script setup>
+// 省略...
+</script>
+
+<template>
+  <h2>Test page</h2>
+  <!-- 省略... -->
+
+  <div class="action-wrapper">
+    <!-- 省略... -->
+    <div class="action-div">
+      <button @click="test1.changeInfo()">test1 change info</button>
+      <button @click="test2.changeInfo()">test2 change info</button>
+    </div>
+    <div class="action-div">
+      <button @click="test1.$reset()">test1 reset state</button>
+      <button @click="test2.$reset()">test2 reset state</button>
+    </div>
+  </div>
+</template>
+
+<!-- 省略... -->
+```
+
+![pinia-21.gif](./images/gif/pinia-21.gif)
+
+但是我們可以**透過重寫 `$reset()` 來重置新添加的 State**。
+
+```javascript
+import { toRef, ref } from 'vue';
+
+pinia.use(({ store }) => {
+  if (!Object.prototype.hasOwnProperty(store.$state, 'hasError')) {
+    const hasError = ref(false);
+    store.$state.hasError = hasError;
+  }
+  store.hasError = toRef(store.$state, 'hasError');
+
+  const originalReset = store.$reset.bind(store);
+  // 重寫 $reset() 方法
+  return {
+    $reset() {
+      originalReset();
+      store.hasError = false;
+    },
+  };
+});
+```
+
+![pinia-22.gif](./images/gif/pinia-22.gif)
+
+### 添加新的外部屬性
+
+當需要**添加一個外部屬性、第三方庫的類別實例或非響應式的簡單值時，應該先使用 `markRaw()` 來包裝**，再將其傳給 Pinia。
+
+以下為在每個 Store 中添加路由器的範例：
+
+```javascript
+import { markRaw } from 'vue';
+import router from './router';
+
+pinia.use(({ store }) => {
+  // 添加路由器
+  store.router = markRaw(router);
+});
+```
+
+### 在 Plugin 中調用 $subscribe
+
+也可以在 Plugin 中使用 `store.$subscribe` 和 `store.$onAction`。
+
+```javascript
+pinia.use(({ store }) => {
+  store.$subscribe((mutation, state) => {
+    // 響應 store 變化
+    console.log('$subscribe-----mutation: ', mutation);
+  });
+  store.$onAction(({ name, args }) => {
+    // 響應 store actions
+    console.log(`---Start "${name}" with params [${args.join(', ')}].`);
+  });
+});
+```
+
+### 添加新的選項 (options)
+
+在定義 Store 時，可以創建新的選項 (options)，以便在 Plugin 中使用它們。
+
+以下範例為創建一個 `debounce` 選項，透過 Plugin 允許你讓任何 `action` 實現防抖效果。
+
+新建 Store (photo1.js、photo2.js)：
+
+```javascript
+// photo1.js
+import { defineStore } from 'pinia';
+
+export const usePhoto1Store = defineStore('photo1', {
+  state: () => {
+    return {
+      photoData: null,
+    };
+  },
+  actions: {
+    async randomPhoto() {
+      const id = Math.floor(Math.random() * 5000) + 1;
+      try {
+        const res = await fetch(
+          `https://jsonplaceholder.typicode.com/photos/${id}`
+        );
+        this.photoData = await res.json();
+      } catch (err) {
+        alert('randomPhoto error:', err);
+      }
+    },
+  },
+  // 新的選項，可以被 Plugin 讀取使用
+  debounce: {
+    randomPhoto: 300,
+  },
+});
+```
+
+```javascript
+// photo2.js
+import { defineStore } from 'pinia';
+import { ref } from 'vue';
+
+export const usePhoto2Store = defineStore(
+  'photo2',
+  () => {
+    const photoData = ref(null);
+
+    async function randomPhoto() {
+      const id = Math.floor(Math.random() * 5000) + 1;
+      try {
+        const res = await fetch(
+          `https://jsonplaceholder.typicode.com/photos/${id}`
+        );
+        photoData.value = await res.json();
+      } catch (err) {
+        alert('randomPhoto error:', err);
+      }
+    }
+
+    return { photoData, randomPhoto };
+  },
+  // 當使用 setup 語法時，自定義選項作為第三個參數傳遞
+  {
+    debounce: {
+      randomPhoto: 300,
+    },
+  }
+);
+```
+
+設置 Plugin ：
+
+在 Plugin 中讀取 `options`，以此來包裝 `action` 並替換原始 `action`。
+
+```javascript
+// 使用任意防抖庫
+import { debounce } from 'lodash';
+
+// 在 Plugin 中讀取 options，以此來包裝 action 並替換原始 action
+pinia.use(({ options, store }) => {
+  if (options.debounce) {
+    // 使用新的 action 來覆蓋原始 action
+    return Object.keys(options.debounce).reduce((debouncedActions, action) => {
+      debouncedActions[action] = debounce(
+        store[action],
+        options.debounce[action]
+      );
+      return debouncedActions;
+    }, {});
+  }
+});
+```
+
+![pinia-23.gif](./images/gif/pinia-23.gif)
