@@ -2,7 +2,7 @@
   <div>
     <MainTitle
       title="Plugin"
-      link="https://github.com/YPINPIN/vue-pinia-note"
+      link="https://github.com/YPINPIN/vue-pinia-note?tab=readme-ov-file#plugin"
     />
     <section>
       <router-link to="/test">Go to Test</router-link> |

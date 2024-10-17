@@ -26,7 +26,13 @@ watch(
 
 <template>
   <h1>Hello Pinia!</h1>
-
+  <a
+    href="https://github.com/YPINPIN/vue-pinia-note?tab=readme-ov-file#pinia-%E7%8B%80%E6%85%8B%E7%AE%A1%E7%90%86%E5%BA%AB-%E5%AD%B8%E7%BF%92%E7%AD%86%E8%A8%98"
+    target="_blank"
+    >Pinia 筆記 📖</a
+  >
+  <span> | 點擊標題旁的 📖 可以對應到相關筆記。</span>
+  <hr />
   <nav>
     <div class="tab-wrapper" ref="tab_wrapper">
       <button
