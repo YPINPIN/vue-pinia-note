@@ -8,13 +8,11 @@ themeColor.$onAction(({ name, store, args, after, onError }) => {
   const startTime = Date.now();
   // 將在執行的 action 之前觸發
   console.log(`---Start "${name}" with params [${args.join(', ')}].`);
-  console.log(`store "${JSON.stringify(store)}"`);
 
   //將在 action 成功並完全運行或 resolve 之後觸發
   after((result) => {
     let time = Date.now() - startTime;
     console.log(`Finished "${name}" after ${time}ms.\nResult: ${result}.`);
-    console.log(`store "${JSON.stringify(store)}"`);
   });
 
   //如果 action 拋出錯誤或 reject 時觸發
